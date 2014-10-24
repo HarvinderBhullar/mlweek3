@@ -74,7 +74,7 @@ nrow(which(c > .8, arr.ind=T))
 
 It was found that there are 42 strongly correlated features. Since features are highly correlated  PCA can be applied on this data for reducing the number of dimensions.
 
-#### Data Partitioning and Cross Validation
+#### Data Partitioning, Model Building and  Cross Validation
 
  - Partition the training data into training and testing for cross validation. Use caret package for these tasks.
 
