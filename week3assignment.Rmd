@@ -1,0 +1,179 @@
+---
+title: "Predicting Exercising Class from HAR Datasets"
+author: "Harvinder"
+date: "Sunday, Oct 23, 2014"
+output: html_document
+---
+
+## Synopsis
+
+The objective is to predict the exercising manner from the HAR datasets. The training and test dataset is available from the following links. 
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv> 
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv> 
+
+
+The data is downloaded locally into training.csv and testing.csv files before further processing is done on it.
+
+ 
+```{r}
+data <- read.csv("training.csv")
+testing <- read.csv("testing.csv")
+dim(data); dim(testing)
+````
+### Approach
+
+In the absence any domain expertise  in this area, following steps were executed: 
+
+ - Clean the data, remove features for which data is not available or hardly available.
+ - Find the correlation between the features.  
+ - Partition the data into training and test set. 
+ - Reduce the number of dimension or features.
+ - Apply model which works for classification problems.
+
+### Data Cleaning
+
+The summary stat shows that there are many columns which has almost all  or most rows as NA. Remove all these columns from the data. Please note: same approach needs to apply to both training and testing data.
+
+``` {r}
+data.nonNACols <- unlist(lapply(data, function(x) !any(is.na(x))), use.names=FALSE)
+data.nonNA <- data[, data.nonNACols]
+testing.nonNACols <- unlist(lapply(testing, function(x) !any(is.na(x))), use.names=FALSE)
+testing.nonNA <-  testing[, testing.nonNACols]
+dim(data.nonNA);dim(testing.nonNA)
+```
+
+It shows that number of cols are not same in both the data set. Let us make it equal by considering only those columns which are available in both the data set.
+
+``` {r}
+data.nonNA.both <- ( data.nonNACols &  testing.nonNACols)
+data.nonNA <- data[, data.nonNA.both]
+testing.nonNA <-  testing[, data.nonNA.both]
+dim(data.nonNA);dim(testing.nonNA)
+```
+
+### Dimension Reduction
+
+ - Find the correlation between features by keeping a high threshold of .8.  For this first step is to convert all the features into numeric
+
+
+``` {r}
+classeVar <- data.nonNA$classe
+data.nonNA <- data.frame(lapply(data.nonNA[,-60] , function(x) as.numeric(x)))
+data.nonNA$classe <- classeVar
+```
+
+ - Find the correlation and display the number of highly correlated features.
+
+``` {r}
+c <- abs(cor(data.nonNA[,-60]))
+diag(c) <- 0
+nrow(which(c > .8, arr.ind=T))
+```
+
+It was found that there are 42 strongly correlated features. Since features are highly correlated  PCA can be applied on this data for reducing the number of dimensions.
+
+#### Data Partitioning and Cross Validation
+
+ - Partition the training data into training and testing for cross validation. Use caret package for these tasks.
+
+``` {r}
+library(caret)
+
+inTrain <- createDataPartition(data.nonNA$classe, p=.7, list=FALSE)
+data.training <- data.nonNA[inTrain, ]
+data.testing <- data.nonNA[-inTrain,]
+dim(data.training); dim(data.testing )
+
+```
+
+ - Apply PCA on the training data set to reduce the dimensions
+
+``` {r}
+preProcess <- preProcess(data.training[,-60], method="pca", thresh=.99)
+data.pca <- predict( preProcess, data.training[,-60])
+dim(data.pca )
+
+```
+
+ - After applying PCA, knn (k nearest neighbour) method is used for classification as knn is good fit for both classification and regression problems.
+
+Please note: Apply pca on testing data as well before validating using preProcess on training data.
+
+```{r}
+model <- train(data.training$classe ~., method="knn", data=data.pca)
+data.pca.test <- predict( preProcess, data.testing[,-60])
+pred <- predict(model, data.pca.test)
+confusionMatrix(pred, data.testing$classe )
+
+```
+
+### Inference
+
+It was found that accurace is  high  96% and p-value is quite low. This  model could be a good fit.
+
+
+### Execute Test
+
+ - Run this model on the provided test data only once.
+
+ - Prepare the test data before applying it on the model. The data is already cleaned before in the variable testing.nonNA
+
+```{r}
+testing.nonNA <- data.frame(lapply(testing.nonNA[,-60] , function(x) as.numeric(x)))
+testing.pca.test <- predict( preProcess, testing.nonNA[,-60])
+pred <- predict(model, testing.pca.test)
+as.character(pred)
+```
+
+### Conclusion
+
+It was found by running the test cases on the coursera that 16 outof 20 are correct, which is fairly good prediction.
+
+
+### Appendix
+
+This section has the complete code as function
+
+``` {r}
+myPredictionModel <- function()
+{
+    
+    data <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+    testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+    data.nonNACols <- unlist(lapply(data, function(x) !any(is.na(x))), use.names=FALSE)
+    data.nonNA <- data[, data.nonNACols]
+    
+    testing.nonNACols <- unlist(lapply(testing, function(x) !any(is.na(x))), use.names=FALSE)
+    testing.nonNA <-  testing[, testing.nonNACols]
+    
+    data.nonNA.both <- ( data.nonNACols &  testing.nonNACols)
+    data.nonNA <- data[, data.nonNA.both]
+    testing.nonNA <-  testing[, data.nonNA.both]
+    
+    classeVar <- data.nonNA$classe
+    data.nonNA <- data.frame(lapply(data.nonNA[,-60] , function(x) as.numeric(x)))
+    data.nonNA$classe <- classeVar
+    
+    inTrain <- createDataPartition(data.nonNA$classe, p=.7, list=FALSE)
+    data.training <- data.nonNA[inTrain, ]
+    data.testing <- data.nonNA[-inTrain,]
+    
+    preProcess <- preProcess(data.training[,-60], method="pca", thresh=.99)
+    data.pca <- predict( preProcess, data.training[,-60])
+    
+    model <- train(data.training$classe ~., method="knn", data=data.pca)
+    data.pca.test <- predict( preProcess, data.testing[,-60])
+    pred <- predict(model, data.pca.test)
+    con <-  confusionMatrix(pred, data.testing$classe )
+    
+    
+    testing.nonNA <- data.frame(lapply(testing.nonNA[,-60] , function(x) as.numeric(x)))
+    testing.pca.test <- predict( preProcess, testing.nonNA[,-60])
+    pred <- predict(model, testing.pca.test)
+    as.character(pred)
+    
+}
+```
+
