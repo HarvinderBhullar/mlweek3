@@ -91,6 +91,7 @@ dim(data.training); dim(data.testing )
  - Apply PCA on the training data set to reduce the dimensions
 
 ``` {r}
+set.seed(145778)
 preProcess <- preProcess(data.training[,-60], method="pca", thresh=.99)
 data.pca <- predict( preProcess, data.training[,-60])
 dim(data.pca )
@@ -112,6 +113,12 @@ confusionMatrix(pred, data.testing$classe )
 ### Inference
 
 It was found that accurace is  high  96% and p-value is quite low. This  model could be a good fit.
+
+The out of sample error is given below, which is quite low 
+
+```{r}
+1- confusionMatrix(pred, data.testing$classe )$overall[[1]]
+```
 
 
 ### Execute Test
