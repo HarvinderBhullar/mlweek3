@@ -112,7 +112,12 @@ confusionMatrix(pred, data.testing$classe )
 
 ### Inference
 
-It was found that accurace is  high  96% and p-value is quite low. This  model could be a good fit.
+It was found that accurace is  high  96% and p-value is quite low. This  model could be a good fit. The plot shows that 5 nearest neighbour gives the best accuracy.
+
+```{r}
+plot(model)
+
+```
 
 The out of sample error is given below, which is quite low 
 
